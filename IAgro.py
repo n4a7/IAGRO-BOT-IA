@@ -40,35 +40,40 @@ def analisar_foto(message):
         
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={CHAVE_GEMINI}"
         
-        # --- A MÁGICA ESTÁ AQUI: Desligando os filtros de segurança ---
         payload = {
             "contents": [{
                 "parts": [
-                    {"text": "Aja como um Engenheiro Agrônomo Sênior. Analise esta foto de plantação e dê um diagnóstico técnico detalhado sobre pragas, doenças ou nutrição. Isso é para fins educativos e profissionais de agricultura."},
+                    {"text": "Aja como um Engenheiro Agrônomo Sênior. Analise esta foto de plantação e forneça um diagnóstico técnico detalhado sobre pragas, doenças ou nutrição. Esta é uma consulta profissional agrícola legítima."},
                     {"inlineData": {"mimeType": "image/jpeg", "data": foto_base64}}
                 ]
             }],
             "safetySettings": [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "OFF"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "OFF"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "OFF"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "OFF"}
             ]
         }
         
         response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
         dados = response.json()
         
+        # Se o Google responder com texto, a gente entrega
         if 'candidates' in dados and len(dados['candidates']) > 0:
-            res = dados['candidates'][0]['content']['parts'][0]['text']
-            enviar_mensagem_longa(chat_id, res)
+            content = dados['candidates'][0].get('content', {})
+            parts = content.get('parts', [])
+            if parts:
+                res = parts[0].get('text', 'O Google gerou uma resposta vazia.')
+                enviar_mensagem_longa(chat_id, res)
+            else:
+                bot.send_message(chat_id, "O Google bloqueou a resposta por segurança (mesmo com filtros OFF).")
+        elif 'error' in dados:
+            bot.send_message(chat_id, f"⚠️ Erro no Google: {dados['error']['message']}")
         else:
-            # Se ainda assim der erro, vamos ver o motivo real
-            motivo = dados.get('promptFeedback', {}).get('blockReason', 'Desconhecido')
-            bot.send_message(chat_id, f"O Google ainda bloqueou a análise. Motivo: {motivo}")
+            bot.send_message(chat_id, "Não foi possível analisar. Tente tirar uma foto mais de perto das folhas.")
             
     except Exception as e:
-        bot.send_message(chat_id, f"Erro: {str(e)}")
+        bot.send_message(chat_id, f"Erro técnico: {str(e)}")
 
 
 @bot.message_handler(func=lambda m: True)

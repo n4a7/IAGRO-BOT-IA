@@ -37,17 +37,30 @@ def boas_vindas(message):
 def analisar_foto(message):
     chat_id = message.chat.id
     bot.send_message(chat_id, "📸 Analisando imagem...")
-    try:
+        try:
         file_info = bot.get_file(message.photo[-1].file_id)
         foto_carregada = bot.download_file(file_info.file_path)
         foto_base64 = base64.b64encode(foto_carregada).decode('utf-8')
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={CHAVE_GEMINI}"
-        payload = {"contents": [{"parts": [{"text": "Aja como Agrônomo Sênior. Analise a foto e dê diagnóstico técnico."}, {"inlineData": {"mimeType": "image/jpeg", "data": foto_base64}}]}]}
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={CHAVE_GEMINI}"
+        
+        payload = {"contents": [{"parts": [{"text": "Aja como Agrônomo Sênior. Analise a foto e dê diagnóstico técnico prático."}, {"inlineData": {"mimeType": "image/jpeg", "data": foto_base64}}]}]}
+        
         response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-        resposta_texto = response.json()['candidates'][0]['content']['parts'][0]['text']
-        enviar_mensagem_longa(chat_id, resposta_texto)
+        dados = response.json()
+
+        # VERIFICAÇÃO BLINDADA
+        if 'candidates' in dados and len(dados['candidates']) > 0:
+            resposta_texto = dados['candidates'][0]['content']['parts'][0]['text']
+            enviar_mensagem_longa(chat_id, resposta_texto)
+        elif 'error' in dados:
+            bot.send_message(chat_id, f"⚠️ Erro no Google: {dados['error']['message']}")
+        else:
+            # Caso o Google bloqueie por segurança ou outro motivo
+            bot.send_message(chat_id, "O Google não conseguiu gerar uma análise para esta imagem (pode ser o filtro de segurança).")
+            
     except Exception as e:
-        bot.send_message(chat_id, f"Erro: {str(e)}")
+        bot.send_message(chat_id, f"Erro técnico: {str(e)}")
 
 @bot.message_handler(func=lambda m: True)
 def responder_texto(message):

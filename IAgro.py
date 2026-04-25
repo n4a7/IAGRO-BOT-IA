@@ -27,27 +27,49 @@ def enviar_mensagem_longa(chat_id, texto, reply_to=None):
 
 @bot.message_handler(commands=['start'])
 def boas_vindas(message):
-    bot.reply_to(message, "Olá, João Vitor! JVN AGROSYSTEM operacional na nuvem.")
+    bot.reply_to(message, "Opaa! JVN AGROSYSTEM PRO ONLINE!.")
 
 @bot.message_handler(content_types=['photo'])
 def analisar_foto(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "📸 Analisando imagem...")
+    bot.send_message(chat_id, "📸 Analisando imagem com modo Pro...")
     try:
         file_info = bot.get_file(message.photo[-1].file_id)
         foto_carregada = bot.download_file(file_info.file_path)
         foto_base64 = base64.b64encode(foto_carregada).decode('utf-8')
+        
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={CHAVE_GEMINI}"
-        payload = {"contents": [{"parts": [{"text": "Analise a foto agronômica e dê diagnóstico prático."}, {"inlineData": {"mimeType": "image/jpeg", "data": foto_base64}}]}]}
+        
+        # --- A MÁGICA ESTÁ AQUI: Desligando os filtros de segurança ---
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"text": "Aja como um Engenheiro Agrônomo Sênior. Analise esta foto de plantação e dê um diagnóstico técnico detalhado sobre pragas, doenças ou nutrição. Isso é para fins educativos e profissionais de agricultura."},
+                    {"inlineData": {"mimeType": "image/jpeg", "data": foto_base64}}
+                ]
+            }],
+            "safetySettings": [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+            ]
+        }
+        
         response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
         dados = response.json()
+        
         if 'candidates' in dados and len(dados['candidates']) > 0:
             res = dados['candidates'][0]['content']['parts'][0]['text']
             enviar_mensagem_longa(chat_id, res)
         else:
-            bot.send_message(chat_id, "Não foi possível gerar a análise (Filtro de segurança).")
+            # Se ainda assim der erro, vamos ver o motivo real
+            motivo = dados.get('promptFeedback', {}).get('blockReason', 'Desconhecido')
+            bot.send_message(chat_id, f"O Google ainda bloqueou a análise. Motivo: {motivo}")
+            
     except Exception as e:
         bot.send_message(chat_id, f"Erro: {str(e)}")
+
 
 @bot.message_handler(func=lambda m: True)
 def responder_texto(message):

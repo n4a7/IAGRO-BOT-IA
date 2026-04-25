@@ -24,7 +24,7 @@ CHAVE_GEMINI = "AIzaSyCQvNspR5K7rNXU-UfUD7iD5lRsnaA50Ro"
 bot = telebot.TeleBot(TOKEN_TELEGRAM)
 
 # URL UNIVERSAL (v1beta + gemini-1.5-flash)
-URL_API = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={CHAVE_GEMINI}"
+URL_API = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={CHAVE_GEMINI}"
 
 def enviar_mensagem_longa(chat_id, texto):
     if not texto: return

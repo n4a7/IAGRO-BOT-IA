@@ -9,25 +9,28 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "JVN AGROSYSTEM ONLINE"
+    return "JVN IAGRO PRO ONLINE"
 
 def run_web():
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
 
+# --- CONFIGURAÇÕES ---
 TOKEN_TELEGRAM = "8786694886:AAEnDlyo4Hj7il5xu-y_NCZPHbo5-Hn6A2U"
 CHAVE_GEMINI = "AIzaSyCQvNspR5K7rNXU-UfUD7iD5lRsnaA50Ro"
 bot = telebot.TeleBot(TOKEN_TELEGRAM)
 
-def enviar_mensagem_longa(chat_id, texto, reply_to=None):
+# URL DEFINITIVA (v1beta é a chave do sucesso aqui)
+URL_API = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={CHAVE_GEMINI}"
+
+def enviar_mensagem_longa(chat_id, texto):
+    if not texto: return
     for i in range(0, len(texto), 4000):
-        parte = texto[i:i+4000]
-        if reply_to: bot.reply_to(reply_to, parte)
-        else: bot.send_message(chat_id, parte)
+        bot.send_message(chat_id, texto[i:i+4000])
 
 @bot.message_handler(commands=['start'])
 def boas_vindas(message):
-    bot.reply_to(message, "Opaa! JVN AGROSYSTEM PRO ONLINE!.")
+    bot.reply_to(message, "🚀 JVN IAGRO PRO Ativado! Mande sua foto ou dúvida agronômica.")
 
 @bot.message_handler(content_types=['photo'])
 def analisar_foto(message):
@@ -38,51 +41,41 @@ def analisar_foto(message):
         foto_carregada = bot.download_file(file_info.file_path)
         foto_base64 = base64.b64encode(foto_carregada).decode('utf-8')
         
-        # AJUSTE AQUI: Versão 'v1' e modelo 'gemini-1.5-flash' puro
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={CHAVE_GEMINI}"
-        
         payload = {
             "contents": [{
                 "parts": [
-                    {"text": "Você é o Engenheiro Agrônomo Sênior do JVN AGRO SYSTEM. Analise esta imagem técnica e forneça um diagnóstico detalhado."},
-                    {"inlineData": {"mimeType": "image/jpeg", "data": foto_base64}}
+                    {"text": "Aja como um Engenheiro Agrônomo Sênior. Analise esta foto de plantação e forneça um diagnóstico técnico detalhado sobre pragas, doenças ou nutrição."},
+                    {"inline_data": {"mime_type": "image/jpeg", "data": foto_base64}}
                 ]
-            }],
-            "safetySettings": [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
-            ]
+            }]
         }
         
-        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+        response = requests.post(URL_API, json=payload)
         dados = response.json()
         
-        if 'candidates' in dados and len(dados['candidates']) > 0:
+        if 'candidates' in dados:
             res = dados['candidates'][0]['content']['parts'][0]['text']
             enviar_mensagem_longa(chat_id, res)
         elif 'error' in dados:
             bot.send_message(chat_id, f"⚠️ Erro no Google: {dados['error']['message']}")
         else:
-            bot.send_message(chat_id, "🔍 O Google não retornou uma resposta. Tente uma foto mais de perto da planta.")
+            bot.send_message(chat_id, "O Google não conseguiu processar essa imagem agora.")
             
     except Exception as e:
-        bot.send_message(chat_id, f"Erro: {str(e)}")
+        bot.send_message(chat_id, f"Erro interno: {str(e)}")
 
 @bot.message_handler(func=lambda m: True)
 def responder_texto(message):
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={CHAVE_GEMINI}"
-        payload = {"contents": [{"parts": [{"text": message.text}]}]}
-        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+        payload = {"contents": [{"parts": [{"text": f"Responda como consultor agrícola: {message.text}"}]}]}
+        response = requests.post(URL_API, json=payload)
         res = response.json()['candidates'][0]['content']['parts'][0]['text']
-        enviar_mensagem_longa(message.chat.id, res, reply_to=message)
-    except: pass
+        enviar_mensagem_longa(message.chat.id, res)
+    except:
+        bot.reply_to(message, "Estou processando muita informação, tente novamente em instantes.")
 
 if __name__ == "__main__":
     t = Thread(target=run_web)
     t.daemon = True
     t.start()
-    print("🚀 Bot Online!")
     bot.infinity_polling(timeout=20, skip_pending=True)

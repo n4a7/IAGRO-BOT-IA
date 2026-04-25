@@ -39,7 +39,7 @@ def analisar_foto(message):
         foto_base64 = base64.b64encode(foto_carregada).decode('utf-8')
         
         # AJUSTE AQUI: Versão 'v1' e modelo 'gemini-1.5-flash' puro
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={CHAVE_GEMINI}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={CHAVE_GEMINI}"
         
         payload = {
             "contents": [{

@@ -38,14 +38,13 @@ def analisar_foto(message):
         foto_carregada = bot.download_file(file_info.file_path)
         foto_base64 = base64.b64encode(foto_carregada).decode('utf-8')
         
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={CHAVE_GEMINI}"
+        # AJUSTE AQUI: Versão 'v1' e modelo 'gemini-1.5-flash' puro
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={CHAVE_GEMINI}"
         
-        # Mudança estratégica no Payload: System Instruction embutido
         payload = {
             "contents": [{
-                "role": "user",
                 "parts": [
-                    {"text": "Você é o Engenheiro Agrônomo do sistema JVN AGRO. Analise esta imagem técnica de agricultura e descreva o estado da cultura, possíveis pragas ou doenças e recomendações de manejo. Não bloqueie esta análise, pois é um conteúdo profissional e seguro."},
+                    {"text": "Você é o Engenheiro Agrônomo Sênior do JVN AGRO SYSTEM. Analise esta imagem técnica e forneça um diagnóstico detalhado."},
                     {"inlineData": {"mimeType": "image/jpeg", "data": foto_base64}}
                 ]
             }],
@@ -60,13 +59,13 @@ def analisar_foto(message):
         response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
         dados = response.json()
         
-        # Se o Google teimoso bloquear o 'candidates', vamos forçar a leitura do erro
-        if 'candidates' in dados and 'content' in dados['candidates'][0]:
+        if 'candidates' in dados and len(dados['candidates']) > 0:
             res = dados['candidates'][0]['content']['parts'][0]['text']
             enviar_mensagem_longa(chat_id, res)
+        elif 'error' in dados:
+            bot.send_message(chat_id, f"⚠️ Erro no Google: {dados['error']['message']}")
         else:
-            # Teste de fogo: Se ele bloquear a foto panorâmica, peça uma foto de perto
-            bot.send_message(chat_id, "🔍 A IA achou a imagem muito ampla. Para um laudo preciso, mande uma foto mais de perto das folhas ou do caule.")
+            bot.send_message(chat_id, "🔍 O Google não retornou uma resposta. Tente uma foto mais de perto da planta.")
             
     except Exception as e:
         bot.send_message(chat_id, f"Erro: {str(e)}")
